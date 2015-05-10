@@ -1,0 +1,109 @@
+INTERLIS 2.3;
+!!==============================================================================
+!!@ Name                = "DynamischerKatalog";
+!!@ SchemaLanguage      = "ili2_3";
+!!@ File                = "DynamischerKatalog.ili";
+!!@ Version             = "1.0";
+!!@ Title               = "Beispiel dynamischer Kataloge";
+!!@ shortDescription    = "Modellbeispiel zur Verwendung dynamischer Kataloge";
+!!@ Issuer              = "http://www.geo.sz.ch";
+!!@ technicalContact    = "mailto:geoportal@sz.ch";
+!!------------------------------------------------------------------------------
+!! Version | DD.MM.YYYY | wer | Änderung
+!!------------------------------------------------------------------------------
+!! 1.0     | 05.09.2011 | KEP | Erstfassung
+!!==============================================================================
+!!******************************************************************************
+!! Bundes-Modell
+!! Hier nur der Vollständigkeit halber angegeben. Das Bundesmodell wird üblich
+!! importiert.
+!!******************************************************************************
+MODEL CatalogueObjects_V1 (en)
+  AT "http://www.geo.admin.ch" VERSION "2011-08-30" =
+  IMPORTS UNQUALIFIED INTERLIS
+  ;
+  TOPIC Catalogues (ABSTRACT) =
+    CLASS Item (ABSTRACT) =
+      IsUseable: MANDATORY BOOLEAN;
+    END Item
+    ;
+    STRUCTURE CatalogueReference (ABSTRACT) =
+      Reference: REFERENCE TO (EXTERNAL) Item;
+    END CatalogueReference
+    ;
+    STRUCTURE MandatoryCatalogueReference (ABSTRACT) =
+      Reference: MANDATORY REFERENCE TO (EXTERNAL) Item;
+    END MandatoryCatalogueReference
+    ;
+  END Catalogues
+  ;
+END CatalogueObjects_V1
+.
+!!******************************************************************************
+!! Schwyzer Modell
+!! Dieses Modell definiert die Kataloge, welche durch die Fachmodelle genutzt
+!! werden können.
+!!******************************************************************************
+MODEL SZKatalog (de)
+  AT "http://models.geo.sz.ch" VERSION "2011-08-30" =
+  IMPORTS CatalogueObjects_V1;
+  TOPIC KatalogBestimmungsartLage EXTENDS CatalogueObjects_V1.Catalogues =
+    DOMAIN
+      Katalogeintrag = MANDATORY TEXT
+      ;
+    !!Klasse, welche die mit dem Katalog in Zusammenhang stehenden Attribute definiert.
+    !!Der Attributname, welcher den Katalog-Wert enthält, muss mit dem Tag-Namen im
+    !!XML übereinstimmen (hier: "Lagebestimmung").
+    CLASS BestimmungsartLage 
+    EXTENDS CatalogueObjects_V1.Catalogues.Item =
+      Lagebestimmung: Katalogeintrag;
+    UNIQUE Lagebestimmung;
+    END BestimmungsartLage
+    ;
+    !!Kokretisierung der Beziehung zwischen der Fachklasse und der Klasse "BestimmungsartLage".
+    STRUCTURE BestimmungsartLageRef 
+    EXTENDS CatalogueObjects_V1.Catalogues.CatalogueReference =
+      Reference(EXTENDED): MANDATORY REFERENCE TO (EXTERNAL) BestimmungsartLage; 
+    END BestimmungsartLageRef
+    ;
+  END KatalogBestimmungsartLage
+  ;
+  TOPIC KatalogBestimmungsartHoehe EXTENDS CatalogueObjects_V1.Catalogues =
+    DOMAIN
+      Katalogeintrag = MANDATORY TEXT
+      ;
+    CLASS BestimmungsartHoehe 
+    EXTENDS CatalogueObjects_V1.Catalogues.Item =
+      Hoehenbestimmung: Katalogeintrag;
+    UNIQUE Hoehenbestimmung;
+    END BestimmungsartHoehe
+    ;
+    STRUCTURE BestimmungsartHoeheRef 
+    EXTENDS CatalogueObjects_V1.Catalogues.CatalogueReference =
+      Reference(EXTENDED): MANDATORY REFERENCE TO (EXTERNAL) BestimmungsartHoehe; 
+    END BestimmungsartHoeheRef
+    ;
+  END KatalogBestimmungsartHoehe
+  ;
+END SZKatalog
+.
+!!******************************************************************************
+!! Fachmodell
+!! Modell, welches den dynamischen Katalog nutzt.
+!!******************************************************************************
+MODEL Fachmodell (de)
+  AT "http://models.geo.sz.ch" VERSION "2011-08-30" =
+  IMPORTS SZKatalog;
+  TOPIC Fachthema =
+    !!Definition der Fachklasse, welche hier zwei Attribute mit je einem Katalog führt.
+    !!Der Verweis auf den externen Katalog im XML geschieht über die oben
+    !!definierte Struktur.
+    CLASS Fachklasse =
+      MeineLagebestimmung : SZKatalog.KatalogBestimmungsartLage.BestimmungsartLageRef;
+      MeineHoehenbestimmung : SZKatalog.KatalogBestimmungsartHoehe.BestimmungsartHoeheRef;
+    END Fachklasse
+    ;
+  END Fachthema
+  ;
+END Fachmodell
+.

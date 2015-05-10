@@ -1,0 +1,37 @@
+INTERLIS 2.3;
+
+/** Model for file verification of the cadastral surveying.
+ */
+!!@ technicalContact="Stefan Ziegler"
+MODEL File_Verification_V1 (en)
+AT "http://www.agi.so.ch"
+VERSION "2015-05-10"  =
+  IMPORTS CHAdminCodes_V1,GeometryCHLV03_V1;
+
+  TOPIC Defects =
+
+    CLASS Defect (ABSTRACT) =
+      Type : MANDATORY TEXT;
+      State_of : MANDATORY FORMAT INTERLIS.XMLDateTime "1950-1-1T0:0:0.0" .. "2999-12-31T23:59:59.0";
+      FOSNr : MANDATORY CHAdminCodes_V1.CHMunicipalityCode;
+      Canton : MANDATORY CHAdminCodes_V1.CHCantonCode;
+    END Defect;
+
+    CLASS DefectLine
+    EXTENDS Defect =
+      Geometry : MANDATORY POLYLINE WITH (STRAIGHTS) VERTEX GeometryCHLV03_V1.Coord2;
+    END DefectLine;
+
+    CLASS DefectPoint
+    EXTENDS Defect =
+      Geometry : MANDATORY GeometryCHLV03_V1.Coord2;
+    END DefectPoint;
+
+    CLASS DefectPolygon
+    EXTENDS Defect =
+      Geometry : MANDATORY SURFACE WITH (STRAIGHTS) VERTEX GeometryCHLV03_V1.Coord2 WITHOUT OVERLAPS>0.02;
+    END DefectPolygon;
+
+  END Defects;
+
+END File_Verification_V1.

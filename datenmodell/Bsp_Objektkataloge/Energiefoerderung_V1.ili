@@ -1,0 +1,178 @@
+INTERLIS 2.3;
+
+!!@ technicalContact=geoinformation@gl.ch
+!!@ IDGeoIV=n/a
+MODEL Energiefoerderung_V1 (de)
+AT "http://www.geo.gl.ch"
+VERSION "2014-11-30"  =
+  IMPORTS CoordSys,Units,CatalogueObjects_V1,GeometryCHLV03_V1;
+
+  TOPIC Energiefoerderung_Kataloge =
+
+    /** Katalog der Gebäudekategorien
+     */
+    CLASS Gebaeudekategorie
+    EXTENDS CatalogueObjects_V1.Catalogues.Item =
+      /** Nummer der Gebäudekategorie
+       */
+      Kategorie : MANDATORY 0 .. 99;
+      /** Bezeichnung der Gebäudekategorie
+       */
+      Name : MANDATORY TEXT*255;
+    END Gebaeudekategorie;
+
+    /** Referenzierungsstruktur für die Zuweisung der Gebäudekategorie zu den Gebäuden
+     */
+    STRUCTURE GebaeudekategorieRef
+    EXTENDS CatalogueObjects_V1.Catalogues.CatalogueReference =
+      Reference (EXTENDED) : MANDATORY REFERENCE TO (EXTERNAL) Gebaeudekategorie;
+    END GebaeudekategorieRef;
+
+    /** Katalog der Massnahmen. «KantCode OR BFECode» muss definiert sein.
+     */
+    CLASS Massnahmenkatalog
+    EXTENDS CatalogueObjects_V1.Catalogues.Item =
+      /** Name/Bezeichnung der Massnahme im Katalog
+       */
+      Name : MANDATORY TEXT*255;
+      /** Kantonaler Code wird anhand der Gesuchsnummer vergeben, z.B. «B-14023» für Beleuchtung 2014 mit Laufnummer 23
+       */
+      KantCode : TEXT*20;
+      /** Code vergeben durch das Bundesamt für Energie (BFE), z.B. «WP1a» für Wärmepumpen einer bestimmten Kategorie
+       */
+      BFECode : TEXT*20;
+      /** Höhe des Förderbeitrages in Schweizer Franken
+       */
+      Beitrag : MANDATORY 0.00 .. 9999999.00 [Units.CHF];
+      /** Faktor zum Grundförderbeitrag
+       */
+      BeitragFaktor : MANDATORY 0.00 .. 9.99;
+      /** Bezugsjahr für die Beiträge der Massnahme. Die Beiträge der entsprechenden Massnahme gelten jeweils ab 1. Januar
+       */
+      Jahr : MANDATORY 1950 .. 2999;
+      /** Kategorisierung der Massnahme: Gebäudebezogen oder Personen/Verein/Institutionsbezogen
+       */
+      Kategorie : MANDATORY (
+        /** Diese Masssnahme bezieht sich auf Gebäude
+         */
+        Gebaeude,
+        /** Diese Massnahme bezieht sich auf Personen/Vereine/Institutionen
+         */
+        Person_Verein_Institution
+      );
+    END Massnahmenkatalog;
+
+    /** Referenzierungsstruktur für die Zuweisung der Massnahmenkategorie zu den Massnahmen
+     */
+    STRUCTURE MassnahmeRef
+    EXTENDS CatalogueObjects_V1.Catalogues.CatalogueReference =
+      Reference (EXTENDED) : MANDATORY REFERENCE TO (EXTERNAL) Massnahmenkatalog;
+    END MassnahmeRef;
+
+  END Energiefoerderung_Kataloge;
+
+  TOPIC Energiefoerderung =
+    DEPENDS ON Energiefoerderung_V1.Energiefoerderung_Kataloge;
+
+    /** Der grosse Teil des Massnahmenkatalogs hat einen Bezug zu einem Gebäude und nicht zu einer Person. Diese gebäudeverknüpften Massnahmen haben einen direkten Nutzen. Dazu gehören beispielsweise Gebäudesanierungen, Verbesserungen an Einzelbauteilen oder Massnahmen an Anlagen zur Energie- und Wärmeerzeugung. Zugehörig sind Attribute zur eindeutigen Lokalisierung und zu den Eigenheiten des Gebäudes. Dargestellt werden die Gebäude als Fläche (Gebäudeumrisse).
+     */
+    CLASS Gebaeude =
+      /** Eidgenössischer Gebäudeidentifikator - Die EGID-Nummer ist eine 6- bis 9-stellige Zahl, die in der ganzen Schweiz eindeutig ist. Neu vergebene EGID sind 9-stellig.
+       */
+      EGID : MANDATORY 100000 .. 999999999;
+      /** Baujahr des Gebäudes
+       */
+      BaujahrGeb : MANDATORY 1000 .. 3000;
+      /** Referenz auf die Gebäudekategorien aus Katalog
+       */
+      GebKategorie : MANDATORY Energiefoerderung_V1.Energiefoerderung_Kataloge.GebaeudekategorieRef;
+      /** Anzahl Wohneinheiten im Gebäude
+       */
+      AnzWohneinheiten : MANDATORY 0 .. 99;
+      /** Heizsystem/Energieträger im Gebäude, z.B. Öl, Holz etc.; bei zahlreichen Massnahmen keine geforderte Angabe
+       */
+      Heizsystem : TEXT*255;
+      /** Heizleistung des Systems in KiloWatt (kW); bei zahlreichen Massnahmen keine geforderte Angabe
+       */
+      Heizleistung : 0.000 .. 999999999.000 [Units.kWh];
+      /** Energiebezugsfläche (EBF) in m2 ; bei zahlreichen Massnahmen keine geforderte Angabe
+       */
+      EBF : 0.000 .. 999999999.000 [Units.m2];
+      /** Gebäudefläche aus der amtlichen Vermessung
+       */
+      Geometrie : MANDATORY SURFACE WITH (STRAIGHTS) VERTEX GeometryCHLV03_V1.Coord2;
+    END Gebaeude;
+
+    /** Massnahmen, welche von Bund und/oder Kantonen gefördert werden, sind vielfältig und in unterschiedlichen Bereichen anwendbar. Die Massnahmen sind also nicht zwingend mit einem Gebäude verknüpft. Sie sind aber entweder mit einem Gebäude oder einer Person/Verein/Institution verbunden.
+     * Die Massnahmen enthalten nebst ihren Namen (z.B. ?MINERGIE-P-ECO Wohnbauten?) weitere Attribute. Dazu gehören die Höhe des Förderbeitrags mit allfälligem Beitragsfaktor, das Datum der Erteilung und Auszahlung des Beitrags, die CO2-Einsparung (in Tonnen) der Massnahme und eine Codierung der Massnahme. Die Codierungen bestehen aus einem BFE-Code (Bundesamt für Energie, z.B. ?WP1a?) oder aus einem kantonalen Code, welcher aus der Gesuchsnummer (z.B. ?B-14023?) hervorgeht. Für einige Massnahmen wurden in der Vergangenheit Gesuchsnummern auf kantonaler Ebene verteilt. Diese sind bereits in den Tabellen innerhalb dieses Kapitels eingetragen. Weitere förderberechtigte Massnahmen, welche noch keine Gesuchsnummer erhalten haben, bekommen den Platzhalter ?GesuchsNr?. Massnahmen, die kantonal nicht unterstützt werden wie beispielsweise der GEAK-Light, erhalten keine Gesuchsnummer, der Wert bleibt einfach leer. Es ist auch möglich, dass einer Massnahme ein BFE-Code und ein kantonaler Code zugeteilt sind. Zusätzliche Massnahmen sind in Zukunft denkbar. Die Massnahmen sind nur übersichtshalber aggregiert und in Unterkapitel aufgeteilt.
+     * Eine Auflistung aller Massnahmen ist in der Modelldokumentation in Kap. 4.3.1/4.3.2. beschrieben.
+     */
+    CLASS Massnahme =
+      /** Referenz auf eine Massnahme aus Katalog
+       */
+      Massnahme : MANDATORY Energiefoerderung_V1.Energiefoerderung_Kataloge.MassnahmeRef;
+      /** Individueller Beitrag (bei indirekten Massnahmen)
+       */
+      BeitragIndividuell : 0.00 .. 9999999.00 [Units.CHF];
+      /** Datum der Zusicherung des Förderbeitrags
+       */
+      DatumZusicherung : MANDATORY FORMAT INTERLIS.XMLDate "1950-1-1" .. "2999-12-31";
+      /** Datum der Auszahlung des Förderbeitrags
+       */
+      DatumAuszahlung : MANDATORY FORMAT INTERLIS.XMLDate "1950-1-1" .. "2999-12-31";
+      /** CO2-Einsparung pro Jahr in Tonnen; Kann nicht bei allen Massnahmen quantifiziert werden, wie beispielsweise die Weiterbildung einer Person.
+       */
+      CO2Einsparung : 0.000 .. 999999.000 [Units.t];
+    END Massnahme;
+
+    /** Massnahmen, welche nicht mit einem Gebäude verknüpft sind, sind zwingend mit einer Person, einem Verein oder einer Institution verbunden. Dazu gehören Massnahmen mit einem indirekten Nutzen (z.B. Förderbeiträge für eine Weiterbildung oder eine Machbarkeitsstudie) und Massnahmen im Bereich der Mobilität (Fördergelder für Elektrobikes). Als Attribute dienen hier der Name (bei Personen der Vor- und Nachname), sowie der Wohnsitz der Person/Verein/Institution (Strasse, Hausnummer, PLZ, Ort). Es darf vorkommen, dass eine Person/Verein/Institution von mehreren unterschiedlichen Massnahmen profitiert.
+     */
+    CLASS Person_Verein_Institution =
+      /** Bei «Person» der Familienname, bei anderen der Name des Vereins bzw. der Institution
+       */
+      Name : MANDATORY TEXT*255;
+      /** Vorname nur bei Personen erforderlich
+       */
+      Vorname : TEXT*255;
+      /** Adressteil Strasse und Hausnummer
+       */
+      StrasseUndNr : MANDATORY TEXT*255;
+      /** Adressteil Postleitzahl
+       */
+      PLZ : MANDATORY 1000 .. 9999;
+      /** Adressteil Ortschaft
+       */
+      Ort : MANDATORY TEXT*255;
+      /** Telefonnummer der Kontaktperson
+       */
+      TelefonNr : TEXT*13;
+      /** E-Mail-Adresse der Kontaktperson
+       */
+      EMail : TEXT*255;
+    END Person_Verein_Institution;
+
+    /** Assoziation zwischen Person/Verein/Institution und Massnahme
+     */
+    ASSOCIATION Massnahme_an_Institution =
+      /** Zugehörige Person/Verein/Institution (Fremdschlüssel); Eine Massnahme ist entweder mit keiner oder einer Person/Verein/Institution verknüpft. Besteht eine Verknüpfung ergibt sich die Bedingung, dass diese Massnahme nicht mit einem Gebäude verknüpft sein kann.
+       */
+      Person -- {1} Person_Verein_Institution;
+      /** Zugehörigkeit zur Massnahme (Fremdschlüssel); Eine Person kann mit keiner oder vielen Massnahmen verknüpft sein.
+       */
+      Massnahme -- {0..*} Massnahme;
+    END Massnahme_an_Institution;
+
+    /** Assoziation zwischen Gebäude und Massnahme
+     */
+    ASSOCIATION Massnahmen_an_Gebaeude =
+      /** Zugehöriges Gebäude (Fremdschlüssel); Eine Massnahme ist entweder mit keinem oder einem Gebäude verknüpft. Besteht eine Verknüpfung ergibt sich die Bedingung, dass diese Massnahme nicht mit einer Person/Verein/Institution verknüpft sein kann.
+       */
+      Gebaeude -- {1} Gebaeude;
+      /** Zugehörigkeit zur Massnahme (Fremdschlüssel); Ein Gebäude kann mit keiner oder vielen Massnahmen verknüpft sein.
+       */
+      Massnahme -- {0..*} Massnahme;
+    END Massnahmen_an_Gebaeude;
+
+  END Energiefoerderung;
+
+END Energiefoerderung_V1.
